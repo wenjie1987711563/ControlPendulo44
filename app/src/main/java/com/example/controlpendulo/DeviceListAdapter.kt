@@ -36,13 +36,10 @@ class DeviceListAdapter(private val context: Context, private val deviceList: Li
         itemHolder.textName.text = deviceInfoModel.deviceName
         itemHolder.textAddress.text = deviceInfoModel.deviceHardwareAddress
 
-        // When a device is selected
         itemHolder.linearLayout.setOnClickListener {
             val intent = Intent(context, MainActivity::class.java)
-            // Send device details to the MainActivity
             intent.putExtra("deviceName", deviceInfoModel.deviceName)
             intent.putExtra("deviceAddress", deviceInfoModel.deviceHardwareAddress)
-            // Call MainActivity
             context.startActivity(intent)
         }
     }

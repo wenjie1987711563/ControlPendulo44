@@ -48,29 +48,20 @@ class MainActivity : AppCompatActivity() {
         var valAleatorio = false
         var valPerpetuo = false
 
-        // If a bluetooth device has been selected from SelectDeviceActivity
         deviceName = intent.getStringExtra("deviceName")
         if (deviceName != null) {
-            // Get the device address to make BT Connection
             deviceAddress = intent.getStringExtra("deviceAddress")
-            // Show progress and connection status
             toolbar.subtitle = "Conectando a $deviceName..."
             progressBar.visibility = View.VISIBLE
             buttonConnect.isEnabled = false
 
-            /*
-            This is the most important piece of code. When "deviceName" is found
-            the code will call a new thread to create a bluetooth connection to the
-            selected device (see the thread code below)
-             */
             val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
             createConnectThread = CreateConnectThread(bluetoothAdapter, deviceAddress)
             createConnectThread!!.start()
         }
 
-        /*
-        Second most important piece of Code. GUI Handler
-         */handler = object : Handler(Looper.getMainLooper()) {
+
+         handler = object : Handler(Looper.getMainLooper()) {
             override fun handleMessage(msg: Message) {
                 when (msg.what) {
                     CONNECTING_STATUS -> when (msg.arg1) {
@@ -94,20 +85,17 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Select Bluetooth Device
         buttonConnect.setOnClickListener { // Move to adapter list
             val intent = Intent(this@MainActivity, SelectDeviceActivity::class.java)
             startActivity(intent)
         }
 
-        // Button that when pressed, sets itself to Green and make cmdText to A, then sets itself to default color
         buttonEmpezar.setOnClickListener {
             var cmdText: String? = null
             buttonEmpezar.setBackgroundColor(Color.GREEN)
             cmdText = "A"
             Thread.sleep(500)
             buttonEmpezar.setBackgroundColor(Color.parseColor("#673AB7"))
-            // Send command to Arduino board
             connectedThread!!.write(cmdText)
         }
 
@@ -150,23 +138,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /* ============================ Thread to Create Bluetooth Connection =================================== */
     class CreateConnectThread(bluetoothAdapter: BluetoothAdapter, address: String?) : Thread() {
         init {
-            /*
-            Use a temporary object that is later assigned to mmSocket
-            because mmSocket is final.
-             */
             val bluetoothDevice = bluetoothAdapter.getRemoteDevice(address)
             var tmp: BluetoothSocket? = null
             val uuid = bluetoothDevice.uuids[0].uuid
             try {
-                /*
-                Get a BluetoothSocket to connect with the given BluetoothDevice.
-                Due to Android device varieties,the method below may not work fo different devices.
-                You should try using other methods i.e. :
-                tmp = device.createRfcommSocketToServiceRecord(MY_UUID);
-                 */
                 tmp = bluetoothDevice.createInsecureRfcommSocketToServiceRecord(uuid)
             } catch (e: IOException) {
                 Log.e(ContentValues.TAG, "Socket's create() method failed", e)
@@ -175,17 +152,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun run() {
-            // Cancel discovery because it otherwise slows down the connection.
             val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
             bluetoothAdapter.cancelDiscovery()
             try {
-                // Connect to the remote device through the socket. This call blocks
-                // until it succeeds or throws an exception.
                 mmSocket!!.connect()
                 Log.e("Status", "Device connected")
                 handler!!.obtainMessage(CONNECTING_STATUS, 1, -1).sendToTarget()
             } catch (connectException: IOException) {
-                // Unable to connect; close the socket and return.
                 try {
                     mmSocket!!.close()
                     Log.e("Status", "Cannot connect to device")
@@ -196,13 +169,10 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
-            // The connection attempt succeeded. Perform work associated with
-            // the connection in a separate thread.
             connectedThread = ConnectedThread(mmSocket)
             connectedThread!!.run()
         }
 
-        // Closes the client socket and causes the thread to finish.
         fun cancel() {
             try {
                 mmSocket!!.close()
@@ -212,7 +182,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /* =============================== Thread for Data Transfer =========================================== */
     class ConnectedThread(private val mmSocket: BluetoothSocket?) : Thread() {
         private val mmInStream: InputStream?
         private val mmOutStream: OutputStream?
@@ -221,8 +190,6 @@ class MainActivity : AppCompatActivity() {
             var tmpIn: InputStream? = null
             var tmpOut: OutputStream? = null
 
-            // Get the input and output streams, using temp objects because
-            // member streams are final
             try {
                 tmpIn = mmSocket!!.inputStream
                 tmpOut = mmSocket.outputStream
@@ -233,15 +200,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun run() {
-            val buffer = ByteArray(1024) // buffer store for the stream
+            val buffer = ByteArray(1024)
             var bytes = 0 // bytes returned from read()
-            // Keep listening to the InputStream until an exception occurs
             while (true) {
                 try {
-                    /*
-                    Read from the InputStream from Arduino until termination character is reached.
-                    Then send the whole String message to GUI Handler.
-                     */
                     buffer[bytes] = mmInStream!!.read().toByte()
                     var readMessage: String
                     if (buffer[bytes] == '\n'.code.toByte()) {
@@ -259,9 +221,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        /* Call this from the main activity to send data to the remote device */
         fun write(input: String?) {
-            val bytes = input!!.toByteArray() //converts entered String into bytes
+            val bytes = input!!.toByteArray()
             try {
                 mmOutStream!!.write(bytes)
             } catch (e: IOException) {
@@ -269,7 +230,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        /* Call this from the main activity to shutdown the connection */
         fun cancel() {
             try {
                 mmSocket!!.close()
@@ -278,9 +238,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /* ============================ Terminate Connection at BackPress ====================== */
     override fun onBackPressed() {
-        // Terminate Bluetooth Connection and close app
         if (createConnectThread != null) {
             createConnectThread!!.cancel()
         }
@@ -295,7 +253,7 @@ class MainActivity : AppCompatActivity() {
         var mmSocket: BluetoothSocket? = null
         var connectedThread: ConnectedThread? = null
         var createConnectThread: CreateConnectThread? = null
-        private const val CONNECTING_STATUS = 1 // used in bluetooth handler to identify message status
-        private const val MESSAGE_READ = 2 // used in bluetooth handler to identify message update
+        private const val CONNECTING_STATUS = 1
+        private const val MESSAGE_READ = 2
     }
 }
